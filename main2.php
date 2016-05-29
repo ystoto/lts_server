@@ -16,13 +16,14 @@ $obj = json_decode($json);
 $command = $obj->{"command"};
 error_log("command=$command", 0);
 
-
 switch ($command) {
   case 'REGISTER':
 	$ret = register($obj);
 	echo $ret;
 	break;
   case 'LOGIN':
+        $ret = login($obj);
+        echo $ret;
 	break;
   default:
 	break;
