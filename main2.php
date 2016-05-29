@@ -1,21 +1,33 @@
 <?php
-header('Content-Type: text/html; charset=UTF-8');
+include("command.php");
+#header('Content-Type: text/html; charset=UTF-8');
 session_start();
 
 if (!isset($_SESSION['new_ss'])) {
   $ss_id = session_id();
-  error_log(print_r("First connection:$ss_id", TRUE), 0);
+  error_log(print_r("First connection,\nSessionID : $ss_id", TRUE), 0);
   $_SESSION['new_ss'] = true;  
   exit;
 }
 
 #print_r($_POST);
-$command = $_POST['command'];
-$num_of_POST = count($_POST);
-error_log("command=$command, numof_POST=$num_of_POST", 0);
-$json_string = $_POST['message'];
-$json = json_decode($json_string);
+$json = file_get_contents('php://input');
+$obj = json_decode($json);
+$command = $obj->{"command"};
+error_log("command=$command", 0);
+
+
+switch ($command) {
+  case 'REGISTER':
+	$ret = register($obj);
+	echo $ret;
+	break;
+  case 'LOGIN':
+	break;
+  default:
+	break;
+}
+
 #print_r($json);
-echo "command=$command";
 ?>
 
