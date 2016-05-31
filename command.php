@@ -98,5 +98,9 @@ function login(&$var) {
 	mysqli_close($link);
         return $retval;
 }
-
+/*
+function logout(&$var) {
+	return ret_enum::RET_FAIL;
+}
+*/
 ?>
