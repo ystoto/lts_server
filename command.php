@@ -100,7 +100,70 @@ function login(&$var) {
 }
 /*
 function logout(&$var) {
-	return ret_enum::RET_FAIL;
+	NO NEED!!	
 }
 */
+
+function getUserMode(&$var) {
+        if (($result = connect_db($link)) != ret_enum::RET_OK) {
+                return $result;
+	}
+
+        $query = "SELECT `user_mode` FROM `".DB::table."` WHERE `id` = '".$var->{'id'}."'";
+        error_log("query: $query", 0);
+
+        $result = mysqli_query($link, $query);
+        $row = mysqli_fetch_array($result);
+        mysqli_close($link);
+
+	// Fill requested data
+	$retval['user_mode'] = $row['user_mode'];
+        return json_encode($retval);
+}
+
+function addNewRequest(&$var) {
+        if (($result = connect_db($link)) != ret_enum::RET_OK) {
+                return $result;
+        }
+	
+	// Insert new-request into 'workitems' table
+
+	// Search candidates by language
+
+	// Foreach member in this group
+	// 	Update new_job flag, then, they'll be informed soon.
+}
+
+function getInfo(&$var, $table, $column) {
+        if (($result = connect_db($link)) != ret_enum::RET_OK) {
+                return $result;
+        }
+
+        $query = "SELECT `".$column."` FROM `".$table."` WHERE `id` = '".$var->{'id'}."'";
+        error_log("query: $query", 0);
+
+        $result = mysqli_query($link, $query);
+        $row = mysqli_fetch_array($result);
+        mysqli_close($link);
+
+        $retval[$column] = $row[$column];
+        return json_encode($retval);
+}
+
+function setInfo(&$var, $table, $column, $val) {
+	$retval = ret_enum::RET_OK;
+        if (($result = connect_db($link)) != ret_enum::RET_OK) {
+                return $result;
+        }
+
+        $query = "UPDATE `".$table."` SET `".$column."` = '".$val."' WHERE `id` ='".$var->{'id'}."'";
+        error_log("query: $query", 0);
+
+        $result = mysqli_query($link, $query);
+        $row = mysqli_fetch_array($result);
+        mysqli_close($link);
+
+        return $retval;
+}
+
 ?>
