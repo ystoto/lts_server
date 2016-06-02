@@ -8,15 +8,16 @@ function return_if_not_logged_in() {
                 return;
         }
 }
-session_start();
 
+
+
+session_start();
 if (!isset($_SESSION['new_ss'])) {
   $ss_id = session_id();
   error_log(print_r("First connection,\nSessionID : $ss_id", TRUE), 0);
   $_SESSION['new_ss'] = true;  
 }
 
-#print_r($_POST);
 $json = file_get_contents('php://input');
 if (!isset($json)) {
   // It looks just first connection
@@ -114,6 +115,5 @@ switch ($command) {
 	break;
 }
 
-#print_r($json);
 ?>
 
