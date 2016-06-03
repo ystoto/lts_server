@@ -31,6 +31,11 @@ class LANG{
 	const JAPANESE = 3;
 }
 
+class UPDATE_MODE{
+	const OVERWRITE = 0;
+	const ATTACH = 1;
+}
+
 function connect_db(/*OUTPUT*/ &$link) {
         $ret = ret_enum::RET_OK;
         $link = mysqli_connect(DB::ip, DB::id, DB::pw, DB::name);
@@ -91,16 +96,37 @@ function register(&$var) {
 	return $ret;
 }
 
+function checkid(&$var) {
+    $ret = ret_enum::RET_OK;
+    if (($ret = connect_db($link)) != ret_enum::RET_OK)
+        return $ret;
+
+    $query = "SELECT `id` FROM `".DB::member_table."` WHERE `id` = '".$var->{'id'}."'";
+    $result = mysqli_query($link, $query);
+    $row = mysqli_fetch_array($result);
+
+    if (strcmp($row['id'], $var->{'id'}) == 0) {
+        error_log("Registration ID: ".$var->{'id'}, 0);
+        $ret = ret_enum::RET_OK;
+    } else {
+        error_log("ID not registration!! id: ".$var->{'id'}, 0);
+        $ret = ret_enum::RET_PARAM_ERROR;
+    }
+    mysqli_close($link);
+    return $ret;
+}
 
 function login(&$var) {
-        $ret = ret_enum::RET_OK;
-        if (($ret = connect_db($link)) != ret_enum::RET_OK)
-                return $ret;
-        
-	$query = "SELECT `password` FROM `".DB::member_table."` WHERE `id` = '".$var->{'id'}."'";
-        error_log("query: $query", 0);
+    $ret = ret_enum::RET_OK;
+    if (($ret = connect_db($link)) != ret_enum::RET_OK)
+        return $ret;
 
-        $result = mysqli_query($link, $query);
+
+	$query = "SELECT `password` FROM `".DB::member_table."` WHERE `id` = '".$var->{'id'}."'";
+
+    error_log("query: $query", 0);
+
+    $result = mysqli_query($link, $query);
 	$row = mysqli_fetch_array($result);
 	
 	$hashed_password = hash("SHA256", $var->{'password'});
@@ -166,25 +192,26 @@ function SELECT(&$filter, $table, $column) {
                 return $result;
         }
 
-        $query = "SELECT `".$column."` FROM `".$table."` WHERE `id` = '".$filter->{'id'}."'";
-        error_log("query: $query", 0);
-
+        $query = "SELECT `".$column."` FROM `".$table."` WHERE `id` = '".$filter->{'id'}."'"; // $filter is not object but array. So, you can access the element by [], not $filter->{'id'}
         $result = mysqli_query($link, $query);
         $row = mysqli_fetch_array($result);
+        error_log("query: $query, result: ".$row[$column], 0);
         mysqli_close($link);
 
-        $ret[$column] = $row[$column];
-        return json_encode($ret);
+        return json_encode($row);
 }
 
-function UPDATE(&$filter, $table, $column, $value) {
+function UPDATE(&$filter, $table, $column, $value, $mode) {
 	$ret = ret_enum::RET_OK;
         if (($result = connect_db($link)) != ret_enum::RET_OK) {
                 return $result;
         }
 
 	// TODO: Trace all input $filter
-        $query = "UPDATE `".$table."` SET `".$column."` = '".$value."' WHERE ";
+	if ($mode == UPDATE_MODE::OVERWRITE)
+        	$query = "UPDATE `".$table."` SET `".$column."` = '".$value."' WHERE ";
+	else if($mode == UPDATE_MODE::ATTACH)
+        	$query = "UPDATE `".$table."` SET `".$column."` = concat(".$column.", ';".$value."') WHERE ";
 
 	// Count elements
 	$cnt = 0;

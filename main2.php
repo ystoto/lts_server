@@ -4,6 +4,7 @@ include("command.php");
 
 function return_if_not_logged_in() {
         if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] != true) {
+		error_log("Not logged in state!!");
                 echo ret_enum::RET_FAIL;
                 return;
         }
@@ -26,23 +27,28 @@ if (!isset($json)) {
 }
 
 
-$obj = json_decode($json);
-$command = $obj->{"command"};
-unset($obj->{'command'});
+$input_json = json_decode($json);
+$command = $input_json->{'command'};
+unset($input_json->{'command'});
 error_log("command=$command", 0);
 
 switch ($command) {
 
   case 'REGISTER':
-	$ret = register($obj);
+	$ret = register($input_json);
+	echo $ret;
+	break;
+
+ case 'CHECKID':
+	$ret = checkid($input_json);
 	echo $ret;
 	break;
 
   case 'LOGIN':
-        $ret = login($obj);
+        $ret = login($input_json);
 	if ($ret == ret_enum::RET_OK) {
 		$_SESSION['logged_in'] = true;
-		$_SESSION['logged_in_id'] = $obj->{'id'};
+		$_SESSION['logged_in_id'] = $input_json->{'id'};
 	}
         echo $ret;
 	break;
@@ -61,8 +67,8 @@ switch ($command) {
 
   case 'GET_USER_MODE':
 	return_if_not_logged_in();
-	$obj->{'id'} = $_SESSION['logged_in_id']; // Fill id
-	$ret = SELECT($obj, DB::member_table, "user_mode");//getUserMode($obj);
+	$input_json->{'id'} = $_SESSION['logged_in_id']; // Fill id
+	$ret = SELECT($input_json, DB::member_table, "user_mode");//getUserMode($obj);
 	error_log($ret);
 	echo $ret;
 	break;
@@ -75,9 +81,9 @@ switch ($command) {
 	}
 
 	// Insert new request
-	$obj->{'id'} = $size + 1; // Expect unique request ID
-	$obj->{'requester_id'} = $_SESSION['logged_in_id']; // Fill id
-	$ret = INSERT($obj, DB::work_table);
+	$input_json->{'id'} = $size + 1; // Expect unique request ID
+	$input_json->{'requester_id'} = $_SESSION['logged_in_id']; // Fill id
+	$ret = INSERT($input_json, DB::work_table);
 	if ($ret != ret_enum::RET_OK) {
 		echo $ret;
 		break;
@@ -86,24 +92,52 @@ switch ($command) {
 	/* Search candidates by language, and 
 	 Set 'new_request' flag to each candidates in member_table*/
 	$filter = (object)array('user_mode' => MEMBER::TRANSLATOR);
-	$filter->{'language'} = $obj->{'target_language'};
-	$result = UPDATE($filter, DB::member_table, "new_request", $obj->{'id'});
-	echo json_encode($obj); // To return request_id
+	$filter->{'language'} = $input_json->{'target_language'};
+	$result = UPDATE($filter, DB::member_table, "new_request", $input_json->{'id'}, UPDATE_MODE::OVERWRITE);
+	$result = UPDATE($filter, DB::member_table, "_notified_new_request", 0, UPDATE_MODE::OVERWRITE); // Set 'Not notified yet'
+	echo json_encode($input_json); // To return request_id
 	break;
 
-  case 'GET_NEW_REQUEST': // call by Translator or Reviewer group
+  case 'GET_NEW_TRANSLATION_REQUEST': // call by Translator or Reviewer group
         return_if_not_logged_in();
-	//$filter->{'id'} = $_SESSION['logged_in_id']; // Fill id
-	$filter = array('id'=>$_SESSION['logged_in_id']);
-        $ret = SELECT($filter, DB::member_table, "new_request"); // Get new request which is applicable to me.
-	UPDATE($filter, DB::member_table, "new_request", 0); // reset it to avoid duplicated notification
-        error_log($ret); // RETURN REQUEST_ID
-        echo $ret;
+	$filter = (object)array('id'=>$_SESSION['logged_in_id']);
+	
+	// Get new request which is applicable to me.
+        $value_new_request = SELECT($filter, DB::member_table, "new_request"); 
+	if (gettype($value_new_request) == "integer") {// Failed to SELECT
+		echo $value_new_request;
+		break;
+	}
+        error_log("ret: ".$value_new_request);
+	$decoded_json = json_decode($value_new_request);
+	if ($decoded_json->{'new_request'} == '0') { // There is no new request
+		echo ret_enum::RET_FAIL;
+		break;
+	}
+	
+	// Confirm whether it's notified or not.
+        $value_notified_new_request = SELECT($filter, DB::member_table, "_notified_new_request"); 
+	$decoded_json2 = json_decode($value_notified_new_request);
+	if ($decoded_json2->{'_notified_new_request'} == '1') { // If notified already
+		echo ret_enum::RET_FAIL;
+		break;
+	}
+
+	// Set 'Notified' to avoid duplicated notification
+	UPDATE($filter, DB::member_table, "_notified_new_request", 1); 
+        echo $value_new_request;
         break;
 
   case 'BID': // call by Translator or Reviewer group
 	return_if_not_logged_in();
-	
+	if ($input_json->{'id'} < 1) {
+		echo ret_enum::RET_FAIL;
+		break;
+	}
+	$filter = (object)array('id'=>$input_json->{'id'}); // request_id
+	$ret = UPDATE($filter, DB::work_table, "translator_candidate_list", $_SESSION['logged_in_id'], UPDATE_MODE::ATTACH);
+	error_log("ret: $ret");
+	echo $ret;
 	break;
 
   case 'GET_BID_RESULT': // call by Translator or Reviewer group
