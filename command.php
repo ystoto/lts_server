@@ -9,6 +9,7 @@ class ret_enum {
 	const RET_PARAM_ERROR = -5;
 }
 
+
 class DB{
 	const ip = "localhost";
 	const id = "root";
@@ -187,12 +188,14 @@ function INSERT(&$var, $table) {
 }
 
 
-function SELECT(&$filter, $table, $column) {
+function SELECT(&$where_condition, $table, $column) {
         if (($result = connect_db($link)) != ret_enum::RET_OK) {
                 return $result;
         }
-
-        $query = "SELECT `".$column."` FROM `".$table."` WHERE `id` = '".$filter->{'id'}."'"; // $filter is not object but array. So, you can access the element by [], not $filter->{'id'}
+	if ($column == "*")
+        	$query = "SELECT * FROM `".$table."` WHERE `id` = '".$where_condition->{'id'}."'";
+	else
+	        $query = "SELECT `".$column."` FROM `".$table."` WHERE `id` = '".$where_condition->{'id'}."'"; // $where_condition is not object but array. So, you can access the element by [], not $where_condition->{'id'}
         $result = mysqli_query($link, $query);
         $row = mysqli_fetch_array($result);
         error_log("query: $query, result: ".$row[$column], 0);
@@ -201,13 +204,13 @@ function SELECT(&$filter, $table, $column) {
         return json_encode($row);
 }
 
-function UPDATE(&$filter, $table, $column, $value, $mode) {
+function UPDATE(&$where_condition, $table, $column, $value, $mode) {
 	$ret = ret_enum::RET_OK;
         if (($result = connect_db($link)) != ret_enum::RET_OK) {
                 return $result;
         }
 
-	// TODO: Trace all input $filter
+	// TODO: Trace all input $where_condition
 	if ($mode == UPDATE_MODE::OVERWRITE)
         	$query = "UPDATE `".$table."` SET `".$column."` = '".$value."' WHERE ";
 	else if($mode == UPDATE_MODE::ATTACH)
@@ -215,11 +218,11 @@ function UPDATE(&$filter, $table, $column, $value, $mode) {
 
 	// Count elements
 	$cnt = 0;
-	foreach($filter as $key) $cnt++;
+	foreach($where_condition as $key) $cnt++;
 
 	// Fill 'WHERE' conditions
 	$idx = 1;
-	foreach($filter as $key => $value) {
+	foreach($where_condition as $key => $value) {
                 $query .= "`".$key."` = '".$value."'";
 		if (($idx++) < $cnt)
 			$query .= " and ";
