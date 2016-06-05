@@ -7,6 +7,7 @@ class ret_enum {
 	const RET_DATABASE_ERROR = -3;
 	const RET_DATABASE_DUPLICATED_ERROR = -4;
 	const RET_PARAM_ERROR = -5;
+	const RET_NOT_LOGGED_IN = -6;
 }
 
 

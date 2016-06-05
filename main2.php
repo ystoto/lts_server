@@ -5,7 +5,7 @@ include("command.php");
 function return_if_not_logged_in() {
         if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] != true) {
 		error_log("Not logged in state!!");
-                echo ret_enum::RET_FAIL;
+                echo ret_enum::RET_NOT_LOGGED_IN;
                 exit;
         }
 }
@@ -108,12 +108,10 @@ switch ($command) {
 	 Set 'new_request' flag to each candidates in member_table*/
 	$where_condition = (object)array('user_mode' => MEMBER::TRANSLATOR);
 	$where_condition->{'language'} = $input_json->{'target_language'};
-	$result = UPDATE($where_condition, DB::member_table, "new_request", $input_json->{'id'}, UPDATE_MODE::OVERWRITE);
-	$result = UPDATE($where_condition, DB::member_table, "_notified_new_request", 0, UPDATE_MODE::OVERWRITE); // Set 'Not notified yet'
+	$result = UPDATE($where_condition, DB::member_table, "new_request", $input_json->{'id'}, UPDATE_MODE::ATTACH);
 
 	$where_condition = (object)array('user_mode' => MEMBER::REVIEWER);
-	$result = UPDATE($where_condition, DB::member_table, "new_request", $input_json->{'id'}, UPDATE_MODE::OVERWRITE);
-	$result = UPDATE($where_condition, DB::member_table, "_notified_new_request", 0, UPDATE_MODE::OVERWRITE); // Set 'Not notified yet'
+	$result = UPDATE($where_condition, DB::member_table, "new_request", $input_json->{'id'}, UPDATE_MODE::ATTACH);
 
 	echo json_encode($input_json); // To return request_id
 	break;
@@ -128,24 +126,28 @@ switch ($command) {
 		echo $value_new_request;
 		break;
 	}
-        error_log("ret: ".$value_new_request);
-	$decoded_json = json_decode($value_new_request);
-	if ($decoded_json->{'new_request'} == '0') { // There is no new request
-		echo ret_enum::RET_FAIL;
-		break;
-	}
 	
 	// Confirm whether it's notified or not.
-	$value_notified_new_request = SELECT($where_condition, DB::member_table, "_notified_new_request");
-	$decoded_json2 = json_decode($value_notified_new_request);
-	if ($decoded_json2->{'_notified_new_request'} == '1') { // If notified already
+	$value_notified_request = SELECT($where_condition, DB::member_table, "_notified_new_request");
+        error_log("new_request: ".$value_new_request.", notified: ".$value_notified_request);
+
+	$decoded_new_request = json_decode($value_new_request);
+	$decoded_notified_request = json_decode($value_notified_request);
+	$arr_new_request = explode(";", $decoded_new_request->{'new_request'});
+	$arr_notified_request = explode(";", $decoded_notified_request->{'_notified_new_request'});
+	$diff = array_diff($arr_new_request, $arr_notified_request);
+	if (count($diff) == 0) {
+		error_log("cnt:".count($arr_new_request).", ".count($arr_notified_request));
 		echo ret_enum::RET_FAIL;
 		break;
 	}
 
+	$real_new_request = implode(";", $diff);
+	$output = (object)array('new_request' => $real_new_request);
+
 	// Set 'Notified' to avoid duplicated notification
-	UPDATE($where_condition, DB::member_table, "_notified_new_request", 1);
-	echo $value_new_request;
+	UPDATE($where_condition, DB::member_table, "_notified_new_request", $real_new_request, UPDATE_MODE::ATTACH);
+	echo json_encode($output);
 	break;
 
   case 'GET_REQUEST_INFO':
