@@ -191,10 +191,13 @@ switch ($command) {
 
   case 'GET_MEMBER_INFO': // call by all, input_json must have 'id' (member_id) 
 	return_if_not_logged_in();
+	if (!isset($input_json->{'id'})) {
+		error_log("No given ID, return current users's information");
+		$input_json->{'id'} = $_SESSION['logged_in_id'];
+	}
         $ret = SELECT($input_json, DB::member_table, "*");
 	$decoded_json = json_decode($ret);
 	unset($decoded_json->{'password'});
-	unset($decoded_json->{'new_request'});
 	unset($decoded_json->{'_notified_new_request'});
 	echo json_encode($decoded_json);
 	break;

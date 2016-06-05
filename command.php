@@ -104,7 +104,7 @@ function checkid(&$var) {
 
     $query = "SELECT `id` FROM `".DB::member_table."` WHERE `id` = '".$var->{'id'}."'";
     $result = mysqli_query($link, $query);
-    $row = mysqli_fetch_array($result);
+    $row = mysqli_fetch_array($result, MYSQL_ASSOC);
 
     if (strcmp($row['id'], $var->{'id'}) == 0) {
         error_log("Registration ID: ".$var->{'id'}, 0);
@@ -128,7 +128,7 @@ function login(&$var) {
     error_log("query: $query", 0);
 
     $result = mysqli_query($link, $query);
-	$row = mysqli_fetch_array($result);
+	$row = mysqli_fetch_array($result, MYSQL_ASSOC);
 	
 	$hashed_password = hash("SHA256", $var->{'password'});
 	if (strcmp($row['password'], $hashed_password) != 0) {
@@ -196,12 +196,12 @@ function SELECT(&$where_condition, $table, $column) {
         	$query = "SELECT * FROM `".$table."` WHERE `id` = '".$where_condition->{'id'}."'";
 	else
 	        $query = "SELECT `".$column."` FROM `".$table."` WHERE `id` = '".$where_condition->{'id'}."'"; // $where_condition is not object but array. So, you can access the element by [], not $where_condition->{'id'}
-        $result = mysqli_query($link, $query);
-        $row = mysqli_fetch_array($result);
-        error_log("query: $query, result: ".$row[$column], 0);
-        mysqli_close($link);
-
-        return json_encode($row);
+	$result = mysqli_query($link, $query);
+	$row = mysqli_fetch_array($result, MYSQL_ASSOC);
+	if ($column != "*")
+		error_log("query: $query, result: ".$row[$column], 0);
+	mysqli_close($link);
+	return json_encode($row);
 }
 
 function UPDATE(&$where_condition, $table, $column, $value, $mode) {
