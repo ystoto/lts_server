@@ -55,6 +55,10 @@ switch ($command) {
 
  case 'CHECKID':
 	$ret = checkid($input_json);
+	if ($ret == ret_enum::RET_OK) {
+        $_SESSION['logged_in'] = true;
+        $_SESSION['logged_in_id'] = $input_json->{'id'};
+    }
 	echo $ret;
 	break;
 
