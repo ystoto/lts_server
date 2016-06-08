@@ -101,7 +101,7 @@ switch ($command) {
 	// Insert new request
 	$input_json->{'id'} = $size + 1; // Expect unique request ID
 	$input_json->{'requester_id'} = $_SESSION['logged_in_id']; // Fill id
-	$input_json->{'request_date'} = date("Y-m-d H:i:s");
+	//$input_json->{'request_date'} = date("Y-m-d H:i:s");
 	$ret = INSERT($input_json, DB::work_table);
 	if ($ret != ret_enum::RET_OK) {
 		echo $ret;
@@ -115,7 +115,12 @@ switch ($command) {
 	$result = UPDATE($where_condition, DB::member_table, "new_request", $input_json->{'id'}, UPDATE_MODE::ATTACH);
 
 	$where_condition = (object)array('user_mode' => MEMBER::REVIEWER);
+	$where_condition->{'language'} = $input_json->{'target_language'};
 	$result = UPDATE($where_condition, DB::member_table, "new_request", $input_json->{'id'}, UPDATE_MODE::ATTACH);
+
+	// Add this new request_id into my worklist
+	$where_condition = (object)array('id' => $_SESSION['logged_in_id']);
+	$result = UPDATE($where_condition, DB::member_table, "worklist", $input_json->{'id'}, UPDATE_MODE::ATTACH);
 
 	echo json_encode($input_json); // To return request_id
 	break;
@@ -165,13 +170,19 @@ switch ($command) {
   case 'BID': // call by Translator or Reviewer group
 	return_if_not_logged_in();
 	return_if_invalid_request_id($input_json);
+	
+	// Fill candidate ID to that column
 	$column = "translator_candidate_list";
 	if (getUserMode() == MEMBER::REVIEWER)
 		$column = "reviewer_candidate_list";
-
-	// Fill candidate ID to that column
 	$where_condition = (object)array('id'=>$input_json->{'id'}); // request_id
 	$ret = UPDATE($where_condition, DB::work_table, $column, $_SESSION['logged_in_id'], UPDATE_MODE::ATTACH);
+	error_log("ret: $ret");
+
+	// Fill candidate ID to that column
+	$column = "_applied_request";
+	$where_condition = (object)array('id'=>$_SESSION['logged_in_id']); // request_id
+	$ret = UPDATE($where_condition, DB::member_table, $column, $input_json->{'id'}, UPDATE_MODE::ATTACH);
 	error_log("ret: $ret");
 	echo $ret;
 	break;
@@ -204,7 +215,7 @@ switch ($command) {
         $ret = SELECT($input_json, DB::member_table, "*");
 	$decoded_json = json_decode($ret);
 	unset($decoded_json->{'password'});
-	unset($decoded_json->{'_notified_new_request'});
+	//unset($decoded_json->{'_notified_new_request'});
 	echo json_encode($decoded_json);
 	break;
 
@@ -217,7 +228,10 @@ switch ($command) {
 
 	$where_condition = (object)array('id'=>$input_json->{'id'}); // request_id
 	$ret = UPDATE($where_condition, DB::work_table, $column, $input_json->{'member_id'}, UPDATE_MODE::OVERWRITE);
-	error_log("ret: $ret");
+	error_log("UPDATE work_table ret: $ret");
+	$where_condition = (object)array('id'=>$input_json->{'member_id'});
+	$ret = UPDATE($where_condition, DB::member_table, "worklist", $input_json->{'id'}, UPDATE_MODE::ATTACH);
+	error_log("UPDATE member_table ret: $ret");
 	echo $ret;
   	break;
 
@@ -226,12 +240,14 @@ switch ($command) {
 	return_if_invalid_request_id($input_json);
 	$requested_date = json_decode(SELECT($input_json, DB::work_table, "request_date"));
 	error_log("requested_date: ".$requested_date->{'request_date'});
+	/*  SKIP THIS TIMEOUT FOR DEMO
 	$remain_time = strtotime("+20 second", strtotime($requested_date->{'request_date'})) - time();
 	if ($remain_time > 0) {
 		error_log("Bidding period is not expired yet!, $remain_time sec left.");
 		echo ret_enum::RET_FAIL;
 		break;
 	}
+	*/
 	$column = "translator_id";
 	if (getUserMode() == MEMBER::REVIEWER)
 		$column = "reviewer_id";
@@ -261,7 +277,10 @@ switch ($command) {
   case 'UPLOAD_DATA': // get uploaded_data path
 	return_if_not_logged_in();
 	return_if_invalid_request_id($input_json);
-	$where_condition = (object)array('id'=>$input_json{'id'}); // request_id
+	error_log("input1:".$input_json->{'id'});
+	error_log("input2:".$input_json->{'column'});
+	error_log("input3:".$input_json->{'path'});
+	$where_condition = (object)array('id'=>$input_json->{'id'}); // request_id
 	$ret = UPDATE($where_condition, DB::work_table, $input_json->{'column'}, $input_json->{'path'});
 	error_log("ret: $ret");
 	echo $ret;
@@ -270,7 +289,7 @@ switch ($command) {
   case 'DOWNLOAD_DATA':	// return download data path
 	return_if_not_logged_in();
 	return_if_invalid_request_id($input_json);
-	$where_condition = (object)array('id'=>$input_json{'id'}); // request_id
+	$where_condition = (object)array('id'=>$input_json->{'id'}); // request_id
 	$ret = SELECT($where_condition/*include request_id*/, DB::work_table, $input_json->{'column'});
 	error_log("ret: $ret");
 	echo $ret;

@@ -45,6 +45,7 @@ function connect_db(/*OUTPUT*/ &$link) {
                 error_log("mysqli_connect error = $dberr", 0);
                 return ret_enum::RET_DATABASE_ERROR;
         }
+	mysqli_set_charset($link, "utf8");
         if (mysqli_select_db($link, DB::name) == false) {
                 error_log("mysqli_select_db error", 0);
                 return ret_enum::RET_DATABASE_ERROR;
