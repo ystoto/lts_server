@@ -108,7 +108,7 @@ switch ($command) {
 		break;
 	}
 
-	/* Search candidates by language, and 
+	/* Search candidates by language, and
 	 Set 'new_request' flag to each candidates in member_table*/
 	$where_condition = (object)array('user_mode' => MEMBER::TRANSLATOR);
 	$where_condition->{'language'} = $input_json->{'target_language'};
@@ -121,6 +121,32 @@ switch ($command) {
 	// Add this new request_id into my worklist
 	$where_condition = (object)array('id' => $_SESSION['logged_in_id']);
 	$result = UPDATE($where_condition, DB::member_table, "worklist", $input_json->{'id'}, UPDATE_MODE::ATTACH);
+
+	echo json_encode($input_json); // To return request_id
+	break;
+
+ case 'UPDATE_PROFILES': // call by Requester
+    error_log("UPDATE Profiles");
+	return_if_not_logged_in();
+
+	// Insert new request
+	$input_json->{'id'} = $_SESSION['logged_in_id']; // Fill id
+
+	$where_condition = (object)array('id' => $_SESSION['logged_in_id']);
+
+	// Update Phone
+	$result = UPDATE($where_condition, DB::member_table, "family_name", $input_json->{'family_name'}, UPDATE_MODE::OVERWRITE);
+	$result = UPDATE($where_condition, DB::member_table, "first_name", $input_json->{'first_name'}, UPDATE_MODE::OVERWRITE);
+	$result = UPDATE($where_condition, DB::member_table, "email", $input_json->{'email'}, UPDATE_MODE::OVERWRITE);
+	$result = UPDATE($where_condition, DB::member_table, "phone", $input_json->{'phone'}, UPDATE_MODE::OVERWRITE);
+	$result = UPDATE($where_condition, DB::member_table, "country", $input_json->{'country'}, UPDATE_MODE::OVERWRITE);
+	$result = UPDATE($where_condition, DB::member_table, "address", $input_json->{'address'}, UPDATE_MODE::OVERWRITE);
+
+	if (ret_enum::RET_OK != $result) {
+		echo ret_enum::RET_FAIL;
+		error_log("Update profile failed!!");
+		exit;
+	}
 
 	echo json_encode($input_json); // To return request_id
 	break;
